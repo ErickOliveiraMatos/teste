@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Neon BR - Completo</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* --- ESTILOS IGUAIS AO SEU CÓDIGO ORIGINAL --- */
+body {
+  margin:0;
+  font-family:'Orbitron',sans-serif;
+  background: radial-gradient(circle at center,#000010 0%,#000020 70%,#000 100%);
+  color:#0ff;
+  overflow:hidden;
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  position:relative;
+}
+#adminBtn {
+  position:absolute; top:15px; left:15px;
+  padding:10px 20px; font-size:1em;
+  border:2px solid #f00; border-radius:15px;
+  background:transparent; color:#f00; cursor:pointer;
+  box-shadow:0 0 20px #f00; z-index:3;
+}
+#adminBtn:hover {
+  background:#f00; color:#000;
+  box-shadow:0 0 30px #f00,0 0 60px #f00;
+}
+.container{position:relative;width:100%;height:100%;}
+#welcomeScreen,#gameScreen{width:100%;height:100%;position:absolute;top:0;left:0;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:1;}
+h1{font-size:2.2em;color:#0ff;text-shadow:0 0 10px #0ff,0 0 20px #0ff,0 0 30px #0ff;animation:neonBlink 1.5s infinite alternate;}
+@keyframes neonBlink {from{text-shadow:0 0 10px #0ff,0 0 20px #0ff;}to{text-shadow:0 0 20px #0ff,0 0 40px #0ff;}}
+button{
+  margin-top:10px;padding:10px 25px;font-size:1.2em;border:2px solid #0ff;background:transparent;color:#0ff;border-radius:20px;cursor:pointer;transition:0.3s;box-shadow:0 0 20px #0ff;
+}
+button:hover{background:#0ff;color:#000;}
+#nameInput{margin-top:20px;padding:10px;font-size:1.2em;border:2px solid #0ff;border-radius:10px;background:transparent;color:#0ff;text-align:center;box-shadow:0 0 15px #0ff;}
+#rankingContainer,#rankingGame{position:absolute;top:15%;right:3%;width:250px;height:70%;background:rgba(0,255,255,0.08);border:2px solid #0ff;border-radius:10px;box-shadow:0 0 15px #0ff;padding:10px;overflow-y:auto;z-index:2;}
+#rankingContainer::-webkit-scrollbar,#rankingGame::-webkit-scrollbar{width:10px;}
+#rankingContainer::-webkit-scrollbar-track,#rankingGame::-webkit-scrollbar-track{background:rgba(0,0,0,0.2);border-radius:6px;}
+#rankingContainer::-webkit-scrollbar-thumb,#rankingGame::-webkit-scrollbar-thumb{background:#0ff;border-radius:6px;box-shadow:0 0 5px #0ff;}
+.top1{color:#FFD700;text-shadow:0 0 10px #FFD700;}
+.top2{color:silver;text-shadow:0 0 10px silver;}
+.top3{color:#cd7f32;text-shadow:0 0 10px #cd7f32;}
+#gameBoard{
+  display:grid;
+  grid-template-columns:repeat(50,12px);
+  grid-template-rows:repeat(40,12px);
+  border:3px solid rgb(0, 162, 255);
+  box-shadow:0 0 20px #0ff,0 0 40px #0ff;
+  margin-top:10px;
+}
+.cell{width:12px;height:12px;}
+.snake{border-radius:2px;transition:background 0.1s;}
+.food{border-radius:50%;background:#ff0;box-shadow:0 0 10px #ff0,0 0 20px #ff0,0 0 40px #ff0;}
+#phaseDisplay{position:absolute;top:15px;right:310px;font-size:20px;color:#0ff;text-shadow:0 0 10px #0ff;z-index:2;}
+#scoreDisplay{position:absolute;top:50px;right:310px;font-size:20px;color:#0ff;text-shadow:0 0 10px #0ff;z-index:2;}
+#gameControls{display:flex;gap:10px;margin-top:10px;z-index:2;}
+#gameControls button{display:inline-block;margin:0;}
+</style>
+</head>
+<body>
+
+<button id="adminBtn">Administração</button>
+
+<div class="container">
+  <div id="welcomeScreen">
+    <h1>🎮 Bem-vindo ao Snake Neon BR 🐍</h1>
+    <input type="text" id="nameInput" placeholder="Digite seu nome" maxlength="10">
+    <button id="startBtn">Jogar</button>
+    <div id="rankingContainer">
+      <h2>🏆 Ranking</h2>
+      <table id="rankingTable"><thead><tr><th>Nome</th><th>Pontos</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div id="gameScreen" style="display:none;">
+    <div id="phaseDisplay">Fase: 1</div>
+    <div id="scoreDisplay">Pontos: 0</div>
+    <div id="gameBoard"></div>
+    <div id="gameControls">
+      <button id="menuGameBtn">Menu</button>
+      <button id="restartGameBtn">Restart</button>
+      <button id="pauseGameBtn">Pause</button>
+    </div>
+    <div id="rankingGame">
+      <h2>🏆 Ranking</h2>
+      <table><thead><tr><th>#</th><th>Nome</th><th>Pontos</th></tr></thead><tbody id="rankGameBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<audio id="bgMusic" loop>
+  <source src="happy-rock.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+/* CONFIGURAÇÃO JSONBIN */
+const BIN_URL = "https://api.jsonbin.io/v3/b/690b853243b1c97be99b0614";
+const API_KEY = "$2a$10$Ft9TKKnLKLeJbvDVJZeJS.CVitUoOjw3Q0Q6QccDlNal0hunMp0Ky";
+
+/* ELEMENTOS */
+const adminBtn=document.getElementById('adminBtn');
+const startBtn=document.getElementById('startBtn');
+const nameInput=document.getElementById('nameInput');
+const welcomeScreen=document.getElementById('welcomeScreen');
+const gameScreen=document.getElementById('gameScreen');
+const gameBoard=document.getElementById('gameBoard');
+const pauseBtn=document.getElementById('pauseGameBtn');
+const menuBtn=document.getElementById('menuGameBtn');
+const restartBtn=document.getElementById('restartGameBtn');
+const rankingTableBody=document.querySelector('#rankingTable tbody');
+const rankGameBody=document.getElementById('rankGameBody');
+const phaseDisplay=document.getElementById('phaseDisplay');
+const scoreDisplay=document.getElementById('scoreDisplay');
+const bgMusic=document.getElementById('bgMusic');
+
+let playerName = localStorage.getItem('playerName') || '';
+let ranking = [];
+
+/* --- JSONBIN --- */
+async function loadRanking(){
+  try{
+    const res = await fetch(BIN_URL+'/latest',{
+      headers:{'X-Access-Key': API_KEY}
+    });
+    const data = await res.json();
+    ranking = data.record || [];
+    renderRanking();
+  }catch(err){
+    console.error("Erro ao carregar ranking:", err);
+    ranking = [];
+  }
+}
+
+async function saveRanking(){
+  try{
+    await fetch(BIN_URL,{
+      method:'PUT',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Access-Key': API_KEY
+      },
+      body: JSON.stringify(ranking)
+    });
+  }catch(err){
+    console.error("Erro ao salvar ranking:", err);
+  }
+}
+
+/* --- RANKING --- */
+function renderRanking(){
+  rankingTableBody.innerHTML=''; rankGameBody.innerHTML='';
+  ranking.forEach((p,i)=>{
+    let cls=''; if(i===0) cls='top1'; else if(i===1) cls='top2'; else if(i===2) cls='top3';
+    const row1=document.createElement('tr'); row1.className=cls; row1.innerHTML=`<td>${p.name}</td><td>${p.score}</td>`; rankingTableBody.appendChild(row1);
+    const row2=document.createElement('tr'); row2.className=cls; row2.innerHTML=`<td>${i+1}</td><td>${p.name}</td><td>${p.score}</td>`; rankGameBody.appendChild(row2);
+  });
+}
+
+function updateRanking(name,score){
+  ranking.push({name,score});
+  ranking.sort((a,b)=>b.score-a.score);
+  if(ranking.length>10) ranking=ranking.slice(0,10);
+  renderRanking();
+  saveRanking();
+}
+
+/* --- ADMIN --- */
+adminBtn.addEventListener('click',async ()=>{
+  const email=prompt('Email:'); const senha=prompt('Senha:');
+  if(email==='adm'&&senha==='adm'){
+    if(confirm('Limpar ranking?')){
+      ranking=[];
+      await saveRanking();
+      renderRanking();
+      alert('Ranking limpo!');
+    }
+  } else alert('Email ou senha incorretos!');
+});
+
+/* --- INICIAR --- */
+startBtn.addEventListener('click',async ()=>{
+  const nome=nameInput.value.trim();
+  if(!nome){alert('Digite seu nome'); return;}
+  playerName=nome; localStorage.setItem('playerName',nome);
+  welcomeScreen.style.display='none'; gameScreen.style.display='flex';
+  await loadRanking();
+  initGame(); bgMusic.currentTime=0; bgMusic.play().catch(()=>{});
+});
+
+/* --- JOGO --- */
+let snake=[],dx=1,dy=0,food=null,score=0,phase=1,interval,paused=false;
+const rows=40,cols=50;
+let grid=[];
+
+function createGrid(){
+  gameBoard.innerHTML=''; grid=[];
+  for(let y=0;y<rows;y++){
+    let row=[];
+    for(let x=0;x<cols;x++){
+      const cell=document.createElement('div');
+      cell.classList.add('cell');
+      gameBoard.appendChild(cell);
+      row.push(cell);
+    }
+    grid.push(row);
+  }
+}
+
+function spawnFood(){
+  let valid=false;
+  while(!valid){
+    const fx=Math.floor(Math.random()*cols);
+    const fy=Math.floor(Math.random()*rows);
+    valid=!snake.some(s=>s.x===fx&&s.y===fy);
+    if(valid) food={x:fx,y:fy};
+  }
+}
+
+function draw(){
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      grid[y][x].className='cell'; grid[y][x].style.background=''; grid[y][x].style.boxShadow='';
+    }
+  }
+  const neonColors=['#0ff','#f0f','#ff0','#0f0','#f00','#00f','#ff1493'];
+  snake.forEach((seg,i)=>{
+    const color=neonColors[i%neonColors.length];
+    grid[seg.y][seg.x].className='cell snake';
+    grid[seg.y][seg.x].style.background=color;
+    grid[seg.y][seg.x].style.boxShadow=`0 0 10px ${color},0 0 20px ${color}`;
+  });
+  if(food){grid[food.y][food.x].className='cell food';}
+  phaseDisplay.textContent=`Fase: ${phase}`;
+  scoreDisplay.textContent=`Pontos: ${score}`;
+}
+
+function moveSnake(){
+  const head={x:snake[0].x+dx,y:snake[0].y+dy};
+  if(head.x<0||head.x>=cols||head.y<0||head.y>=rows||snake.some(s=>s.x===head.x&&s.y===head.y)){
+    gameOver(); return;
+  }
+  snake.unshift(head);
+  if(food && head.x===food.x && head.y===food.y){
+    score+=10;
+    if(score%100===0){
+      phase++;
+      const c=randomColor();
+      gameBoard.style.border=`3px solid ${c}`;
+      gameBoard.style.boxShadow=`0 0 20px ${c},0 0 40px ${c}`;
+    }
+    spawnFood();
+  }else snake.pop();
+}
+
+function randomColor(){
+  const colors=['#0ff','#c0f','#ff0','#0f0','#f00','#ff1493','#00ff7f','#ffa500','#ff4500','#00ced1'];
+  return colors[Math.floor(Math.random()*colors.length)];
+}
+
+function gameLoop(){if(!paused){moveSnake();draw();}}
+function initGame(){
+  createGrid();
+  snake=[{x:Math.floor(cols/2),y:Math.floor(rows/2)}];
+  dx=1; dy=0; score=0; phase=1;
+  spawnFood(); draw();
+  clearInterval(interval);
+  interval=setInterval(gameLoop,70);
+  paused=false; pauseBtn.textContent='Pause';
+}
+
+function gameOver(){
+  clearInterval(interval);
+  menuBtn.style.display='inline-block';
+  restartBtn.style.display='inline-block';
+  updateRanking(playerName,score);
+}
+
+/* --- CONTROLES --- */
+document.addEventListener('keydown',(e)=>{
+  switch(e.key){
+    case 'ArrowUp': if(dy!==1){dx=0;dy=-1;} break;
+    case 'ArrowDown': if(dy!==-1){dx=0;dy=1;} break;
+    case 'ArrowLeft': if(dx!==1){dx=-1;dy=0;} break;
+    case 'ArrowRight': if(dx!==-1){dx=1;dy=0;} break;
+  }
+});
+
+pauseBtn.addEventListener('click',()=>{paused=!paused; pauseBtn.textContent=paused?'Continuar':'Pause';});
+menuBtn.addEventListener('click',()=>{gameScreen.style.display='none';welcomeScreen.style.display='flex';clearInterval(interval);renderRanking();});
+restartBtn.addEventListener('click',()=>{initGame();});
+
+loadRanking(); // carrega ranking ao abrir a página
+</script>
+</body>
+</html>
